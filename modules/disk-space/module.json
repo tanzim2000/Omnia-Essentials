@@ -1,4 +1,6 @@
 {
 	"name": "Disk Space",
-	"description": "Free space on a filesystem"
+	"description": "Free space on a filesystem",
+	"complete-description": "Reports free space on any path you give it — percent used, free, used, total, and the path itself. Reads the filesystem directly through the OS rather than shelling out to df, which means no dependency on df's text output differing between systems.\n\nLike Weather, which of those five fields leads is a priority setting you control — put percent used first for an at-a-glance tile, or lead with free space if that's what you actually check for.",
+	"screenshots": []
 }

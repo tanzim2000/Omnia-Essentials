@@ -1,4 +1,6 @@
 {
 	"name": "Calendar",
-	"description": "Upcoming events from an ICS feed"
+	"description": "Upcoming events from an ICS feed",
+	"complete-description": "Upcoming events from any ICS feed — the export format almost every calendar (Google, Outlook, Apple, Nextcloud) can produce. Leads with a plain count of what's coming up, since that's the one thing worth reading from across a room, then lists individual events as the tile has room for them.\n\nUnlike Weather or Disk Space, there's nothing here to reorder — every row is the same kind of thing, one event — so a larger tile simply shows more of them, up to a limit you set.",
+	"screenshots": []
 }

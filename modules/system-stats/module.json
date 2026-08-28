@@ -1,4 +1,6 @@
 {
 	"name": "System Stats",
-	"description": "CPU, memory and uptime of the machine running OmniCore"
+	"description": "CPU, memory and uptime of the machine running OmniCore",
+	"complete-description": "How the machine running OmniCore itself is doing: CPU load, memory used, uptime, hostname, and core count. CPU usage is measured properly rather than guessed — two snapshots of cumulative tick counts taken 200ms apart, compared, rather than a single misleading instantaneous read.\n\nFive fields, all reorderable by priority the same way Weather and Disk Space are. No network access at all — everything comes straight from the OS.",
+	"screenshots": []
 }

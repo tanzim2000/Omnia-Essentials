@@ -1,4 +1,6 @@
 {
 	"name": "Weather",
-	"description": "Current conditions from Open-Meteo"
+	"description": "Current conditions from Open-Meteo",
+	"complete-description": "Current conditions from Open-Meteo — no API key, no account, nothing to sign up for. Reports temperature, condition, feels-like, today's high and low, humidity, and wind, with a Celsius/Fahrenheit toggle and a configurable refresh interval.\n\nWhich of those six fields matters most is up to you, not the module: an \"Info order\" setting lets you drag them into any order, and whatever's on top survives even a small tile — the rest appear as the tile has room. If Open-Meteo is briefly unreachable, the last known reading is shown rather than an error, clearly marked as such.",
+	"screenshots": []
 }

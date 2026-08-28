@@ -1,4 +1,6 @@
 {
 	"name": "Prayer Times",
-	"description": "Daily prayer times from Aladhan"
+	"description": "Daily prayer times from Aladhan",
+	"complete-description": "Daily prayer times for your location, from the Aladhan API. Scales in real steps rather than a flat list: a small tile shows just the next prayer's name and time; more room adds the countdown; more still adds the next two after that; a large tile shows the whole day.",
+	"screenshots": []
 }

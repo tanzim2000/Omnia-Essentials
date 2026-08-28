@@ -1,4 +1,6 @@
 {
 	"name": "Notifications",
-	"description": "Recent messages from an ntfy topic"
+	"description": "Recent messages from an ntfy topic",
+	"complete-description": "Recent messages from an ntfy.sh topic — a lightweight way to push notifications to a display from scripts, other services, or anything that can make an HTTP request. Shows a count and the topic name, then individual messages with how long ago each arrived, as the tile has room.",
+	"screenshots": []
 }

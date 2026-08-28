@@ -2,5 +2,7 @@
 	"name": "Bing Wallpaper",
 	"description": "Bing's picture of the day",
 	"provides": ["background", "image"],
-	"tile": false
+	"tile": false,
+	"complete-description": "Bing's picture of the day, usable as a face's page background rather than a tile of its own — that's what `tile: false` means here, and why it doesn't show up as an installable tile the way the others do by default. Also supplies its picture as ordinary image content, so a theme that wants it as a tile instead can still use it that way.\n\nThe simplest richness scale of any module here, deliberately: the picture is always sent, and the only real question is whether there's room for Bing's copyright line underneath it.",
+	"screenshots": []
 }

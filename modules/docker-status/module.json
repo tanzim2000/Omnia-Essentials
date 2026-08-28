@@ -1,4 +1,6 @@
 {
 	"name": "Docker",
-	"description": "Which containers are running"
+	"description": "Which containers are running",
+	"complete-description": "How many containers are running out of how many exist, then which ones by name and status as the tile has room. Talks to the Docker socket directly — useful for keeping an eye on a home server's containers from across the room without opening a terminal.\n\nSame shape as Calendar: a headline count, then more rows on a bigger tile. Nothing to reorder, since every container is the same kind of thing.",
+	"screenshots": []
 }

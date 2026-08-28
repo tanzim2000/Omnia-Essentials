@@ -1,4 +1,6 @@
 {
 	"name": "Windows 8",
-	"description": "Asymmetric tile grid with live tiles and flip animations"
+	"description": "Asymmetric tile grid with live tiles and flip animations",
+	"complete-description": "The Windows 8 / Metro look: an asymmetric grid of live tiles in four sizes — Small, Medium, Wide, Large — each with its own layout rather than one shape scaled up. Small shows one value; Medium and Wide lead with a large headline value plus a couple of supporting rows; Large is a plain data table.\n\nWhen a module sends more than a size can show at once, content pages through via a prism-roll animation rather than being cut off silently — Depth Swivel, Prism Roll, and a sliding-card transition depending on what's changing. Built around modules that emit `pair` blocks specifically; other content types fall back to a simpler layout.",
+	"screenshots": []
 }
