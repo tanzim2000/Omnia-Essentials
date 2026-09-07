@@ -1,0 +1,19 @@
+{
+	"settings": [
+		{
+			"key": "zoneSource",
+			"label": "Show the time for",
+			"type": "select",
+			"options": ["This machine", "A location"],
+			"default": "This machine",
+			"help": "\"This machine\" needs no network call at all — it's OmniCore's own resolved timezone."
+		},
+		{
+			"key": "location",
+			"label": "Location",
+			"type": "location",
+			"showWhen": { "key": "zoneSource", "equals": "A location" },
+			"help": "Which place's timezone to show. Run a second instance for a second timezone."
+		}
+	]
+}

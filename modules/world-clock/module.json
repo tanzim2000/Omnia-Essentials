@@ -1,0 +1,7 @@
+{
+	"name": "World Clock",
+	"description": "The current time, here or somewhere else",
+	"provides": ["text", "pair", "time"],
+	"complete-description": "Shows the current time, either this machine's own, or a place you choose, independently per tile. Run two instances side by side to track two different timezones at once.\n\nNo format choices here (12-hour vs 24-hour, whether to show seconds or a date) that's entirely up to whichever theme is displaying it. This module only ever answers one question: what time is it, and in which timezone.",
+	"screenshots": []
+}
