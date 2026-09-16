@@ -1,6 +1,6 @@
 {
 	"name": "Calendar",
-	"description": "Upcoming events from an ICS feed",
-	"complete-description": "Upcoming events from any ICS feed — the export format almost every calendar (Google, Outlook, Apple, Nextcloud) can produce. Leads with a plain count of what's coming up, since that's the one thing worth reading from across a room, then lists individual events as the tile has room for them.\n\nUnlike Weather or Disk Space, there's nothing here to reorder — every row is the same kind of thing, one event — so a larger tile simply shows more of them, up to a limit you set.",
+	"description": "Events from an ICS feed",
+	"complete-description": "Events from any ICS feed — the export format Google Calendar, Outlook, iCloud and Nextcloud can all publish, with no account to connect and no API key to manage.\n\nIt hands over raw events and nothing else: what's on, and when. It has no notion of \"today\", no weeks, no grid — the theme already knows the device's own date and is the one deciding what a calendar looks like and which events belong on screen. Two window settings say how far back and how far forward to read the feed, since a calendar has no natural end of its own.\n\nThe fiddly part is getting dates right across providers, and that's handled here: times written in another timezone are converted properly (including Outlook's non-standard Windows zone names), all-day events stay as whole calendar days rather than being pinned to an instant and sliding onto the wrong day, and multi-day events report the last day they're actually on. Cancelled events are dropped. Repeating events are skipped rather than guessed at.",
 	"screenshots": []
 }
