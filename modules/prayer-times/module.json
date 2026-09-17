@@ -1,6 +1,6 @@
 {
 	"name": "Prayer Times",
 	"description": "Daily prayer times from Aladhan",
-	"complete-description": "Daily prayer times for your location, from the Aladhan API. Scales in real steps rather than a flat list: a small tile shows just the next prayer's name and time; more room adds the countdown; more still adds the next two after that; a large tile shows the whole day.",
+	"complete-description": "Prayer times for your location, from the Aladhan API. Scales in real steps rather than a flat list: a small tile shows just the next prayer's time; more room adds its name; more still adds the two prayers after that; a large tile shows all five.\n\nThe list is never in fixed calendar order — it always starts at whichever prayer is actually coming up and rotates forward from there, wrapping into tomorrow once the day's prayers are behind you, rather than showing Fajr first regardless of the time of day.\n\nCalculated against the timezone the location actually sits in, not the server's own clock, so a location tracked somewhere else stays correct.",
 	"screenshots": []
 }

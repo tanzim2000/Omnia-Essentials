@@ -3,17 +3,18 @@
 //
 // RICHNESS
 //
-// This module has four steps on its own 1-100 scale. What those numbers
-// mean is this module's business — a theme only says how much room it has
-// and gets back something that fits:
+// One next-up prayer at the smallest size, growing to all five at the
+// largest — but which five, and in what order, is worked out fresh every
+// call rather than fixed. The list always starts at whichever prayer is
+// actually next and cascades forward through the day, wrapping past
+// midnight if it has to. A small tile showing "Dhuhr" first because
+// that's where the calendar day happens to start is a small tile lying
+// about what's actually coming up.
 //
 //    1-24    the next prayer's time, nothing else
 //   25-49    that time, and which prayer it is
 //   50-79    the above, plus the two prayers after it
-//   80-100   the above, plus the whole day
-//
-// The steps are chosen around what's useful at a glance rather than split
-// evenly. A small tile wants the time; a large one wants the schedule.
+//   80-100   the above, plus the whole rotation -- all five, next-first
 
 // Aladhan identifies calculation methods by number. We store the readable
 // name in settings and map it here, so the admin page shows words rather
@@ -51,6 +52,41 @@ function formatTime(time, use12Hour) {
 	return hours + ":" + String(minutes).padStart(2, "0") + " " + suffix;
 }
 
+// The current wall-clock time AT THE PRAYER LOCATION, in minutes since
+// midnight — which is not necessarily the same as the server's own clock.
+//
+// Aladhan's location setting can legitimately point anywhere, the same
+// way World Clock's can — someone in Regina is entitled to track prayer
+// times for family in Dhaka. Comparing Dhaka's prayer times against
+// Regina's own system clock would get "what's next" wrong by whatever the
+// two timezones differ by. Aladhan hands back the zone it actually
+// calculated against (`meta.timezone`), so we ask what time it is THERE
+// rather than assuming the server's own zone applies.
+function nowMinutesInZone(zone) {
+	if (!zone) {
+		return null;
+	}
+
+	try {
+		const parts = new Intl.DateTimeFormat("en-US", {
+			timeZone: zone,
+			hour12: false,
+			hour: "2-digit",
+			minute: "2-digit"
+		}).formatToParts(new Date());
+
+		const read = (type) => Number(parts.find((p) => p.type === type).value);
+
+		// Some environments render midnight as hour 24 rather than 0
+		const hour = read("hour") % 24;
+
+		return hour * 60 + read("minute");
+	} catch (error) {
+		// An unrecognised zone name shouldn't take the whole tile down
+		return null;
+	}
+}
+
 function problem(reason) {
 	return {
 		title: "Prayer",
@@ -85,7 +121,7 @@ module.exports = async function prayerTimes(config, richness, omni) {
 
 	// Include today's date in the cache key so the cached answer is dropped
 	// at midnight rather than carrying yesterday's times over
-	const { data } = await omni.fetch(url, {
+	const { data, stale } = await omni.fetch(url, {
 		key: "prayer-times:" + new Date().toDateString() + ":" + url,
 		cacheSeconds: Number(config.refreshMinutes) * 60
 	});
@@ -105,8 +141,16 @@ module.exports = async function prayerTimes(config, richness, omni) {
 		clean[prayer] = timings[prayer].split(" ")[0];
 	}
 
-	const now = new Date();
-	const nowMinutes = now.getHours() * 60 + now.getMinutes();
+	const zone = data.data.meta && data.data.meta.timezone;
+	let nowMinutes = nowMinutesInZone(zone);
+
+	if (nowMinutes === null) {
+		// No usable zone from Aladhan — fall back to the server's own
+		// clock, the same assumption every earlier version of this
+		// module made unconditionally
+		const now = new Date();
+		nowMinutes = now.getHours() * 60 + now.getMinutes();
+	}
 
 	// Where in the day we are. If every prayer has passed, the next one is
 	// tomorrow's Fajr.
@@ -114,8 +158,8 @@ module.exports = async function prayerTimes(config, richness, omni) {
 		(prayer) => toMinutes(clean[prayer]) > nowMinutes
 	);
 
-	const nextAt = upcomingAt === -1 ? 0 : upcomingAt;
-	const nextPrayer = PRAYERS[nextAt];
+	const wrapped = upcomingAt === -1;
+	const nextAt = wrapped ? 0 : upcomingAt;
 
 	// The next time is the one thing worth seeing from across a room, so it
 	// leads at every richness
@@ -123,7 +167,7 @@ module.exports = async function prayerTimes(config, richness, omni) {
 		{
 			type: "text",
 			emphasis: "primary",
-			value: formatTime(clean[nextPrayer], use12Hour)
+			value: formatTime(clean[PRAYERS[nextAt]], use12Hour)
 		}
 	];
 
@@ -131,31 +175,37 @@ module.exports = async function prayerTimes(config, richness, omni) {
 		content.push({
 			type: "text",
 			emphasis: "secondary",
-			value: upcomingAt === -1 ? "Fajr, tomorrow" : nextPrayer
+			value: wrapped ? "Fajr, tomorrow" : PRAYERS[nextAt]
 		});
 	}
 
-	if (richness >= 80) {
-		// Room for the whole day
-		for (const prayer of PRAYERS) {
-			content.push({
-				type: "pair",
-				label: prayer,
-				value: formatTime(clean[prayer], use12Hour)
-			});
-		}
-	} else if (richness >= 50) {
-		// Room for what's coming, but not the whole day. Wrap round the end
-		// of the list so late evening still shows tomorrow's start.
-		for (let ahead = 1; ahead <= 2; ahead++) {
-			const prayer = PRAYERS[(nextAt + ahead) % PRAYERS.length];
+	// How many MORE prayers to show beyond the leading one, scaling with
+	// richness -- 0, 2, or 4, for a total of 1, 3, or 5 shown.
+	const extra = richness >= 80 ? 4 : richness >= 50 ? 2 : 0;
 
-			content.push({
-				type: "pair",
-				label: prayer,
-				value: formatTime(clean[prayer], use12Hour)
-			});
-		}
+	// Always the same five names, just rotated to start at whichever is
+	// actually next -- never the fixed Fajr-first order this used to show
+	// regardless of the time of day.
+	//
+	// Rotating past index 4 wraps into tomorrow. There's no fetched value
+	// for tomorrow specifically, so today's already-fetched time for that
+	// same prayer stands in for it -- prayer times move by a minute or two
+	// day to day, so this is a fair approximation, not a guess.
+	for (let ahead = 1; ahead <= extra; ahead++) {
+		const prayer = PRAYERS[(nextAt + ahead) % PRAYERS.length];
+
+		content.push({
+			type: "pair",
+			label: prayer,
+			value: formatTime(clean[prayer], use12Hour)
+		});
+	}
+
+	// Staleness is a caveat about the data, not a prayer time -- it goes
+	// out as its own block, the same way Weather and Calendar handle a
+	// last-known reading rather than folding it into the schedule itself.
+	if (stale) {
+		content.push({ type: "pair", label: "Reading", value: "last known" });
 	}
 
 	return {
