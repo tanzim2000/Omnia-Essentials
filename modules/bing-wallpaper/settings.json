@@ -4,8 +4,8 @@
 			"key": "market",
 			"label": "Region",
 			"type": "select",
-			"options": ["en-CA", "en-US", "en-GB", "en-IN", "ja-JP", "de-DE"],
-			"default": "en-CA",
+			"options": ["Canada", "United States", "United Kingdom", "India", "Japan", "Germany"],
+			"default": "Canada",
 			"help": "Bing shows a different picture per region"
 		},
 		{

@@ -7,8 +7,22 @@
 
 const ENDPOINT = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1";
 
+// Bing identifies a region by an internal "market" code, not a name a
+// person would recognize -- same reason prayer-times keeps its own
+// lookup table for calculation method rather than showing raw API
+// values in settings.
+const MARKETS = {
+	"Canada": "en-CA",
+	"United States": "en-US",
+	"United Kingdom": "en-GB",
+	"India": "en-IN",
+	"Japan": "ja-JP",
+	"Germany": "de-DE"
+};
+
 module.exports = async function bingWallpaper(config, richness, omni) {
-	const url = ENDPOINT + "&mkt=" + encodeURIComponent(config.market);
+	const market = MARKETS[config.market] || "en-CA";
+	const url = ENDPOINT + "&mkt=" + encodeURIComponent(market);
 
 	const { data } = await omni.fetch(url, {
 		// The picture changes once a day
