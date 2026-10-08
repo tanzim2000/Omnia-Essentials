@@ -375,6 +375,76 @@
 
 		.progress div { height: 100%; background: #fff; }
 
+		/* A QR code takes whatever height is left on the face and stays
+		   square, sitting at the left like everything else on a tile.
+
+		   It shrinks rather than overflowing: a code squeezed smaller is
+		   still a code, one pushed off the bottom of the tile isn't. And
+		   it's never recoloured to match the accent — OmniCore draws it
+		   black on white with a blank border because that's what a phone
+		   can actually read, and a tile-coloured code would look better
+		   and scan worse. */
+		.qr {
+			flex: 1 1 auto;
+			min-height: 0;
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			margin-top: 4px;
+		}
+
+		.qr svg {
+			flex: 1 1 auto;
+			min-height: 0;
+			max-width: 100%;
+			aspect-ratio: 1 / 1;
+			display: block;
+		}
+
+		/* What scanning it does. Same weight as a secondary line — it
+		   explains the code the way .primary-name explains a number. */
+		.qr-label {
+			flex: none;
+			max-width: 100%;
+			font-size: 12px;
+			opacity: 0.85;
+			margin-top: 4px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		/* A wide tile's spare room is sideways, not downwards. With the
+		   label underneath, the code was held to the same height as on a
+		   medium tile and the rest of the width sat empty. Beside it, at
+		   the bottom like Metro's own tile text, the code gets the whole
+		   height instead. */
+		.tile.wide .qr {
+			flex-direction: row;
+			align-items: flex-end;
+			gap: 12px;
+		}
+
+		.tile.wide .qr svg {
+			flex: none;
+			align-self: stretch;
+		}
+
+		.tile.wide .qr-label {
+			flex: 1 1 auto;
+			min-width: 0;
+			margin-top: 0;
+			white-space: normal;
+		}
+
+		/* A small tile is too small for a code AND words about it — with
+		   both, the code came out around 17px and no phone could read it.
+		   So there the code gets the whole face: no caption, and no tile
+		   name either, which is how Metro drew its small tiles anyway. */
+		.tile.small .qr { margin-top: 0; }
+		.tile.small .qr-label { display: none; }
+		.tile.small .body:has(> .qr) ~ .label { display: none; }
+
 		/* Everything scales with the tile it lives in — a small tile with
 		   13px text runs out of room long before the words do */
 		.tile.small  .primary { font-size: 18px; }
@@ -621,6 +691,31 @@
 			if (block.type === "progress") {
 				const pct = Math.max(0, Math.min(1, Number(block.value))) * 100;
 				return '<div class="progress"><div style="width:' + pct + '%"></div></div>';
+			}
+
+			// Something to scan. The module sent only what the code holds;
+			// OmniCore drew the code and handed us `svg`. Our job is just
+			// where it goes and how big.
+			//
+			// `svg` goes in as markup, unescaped — the one field that's
+			// meant to. It's safe because OmniCore builds it from the
+			// code's squares alone and throws away any `svg` a module
+			// tries to send itself. The label is still escaped like
+			// everything else.
+			if (block.type === "qr") {
+				// Nothing drawable (empty, or too long for a QR code) —
+				// the value as text is still worth showing
+				if (!block.svg) {
+					return block.text
+						? '<div class="body">' + escapeHtml(block.text) + "</div>"
+						: "";
+				}
+
+				return '<div class="qr">' + block.svg +
+					(block.label
+						? '<div class="qr-label">' + escapeHtml(block.label) + "</div>"
+						: "") +
+					"</div>";
 			}
 
 			// Unknown type — show whatever plain text it gave us
