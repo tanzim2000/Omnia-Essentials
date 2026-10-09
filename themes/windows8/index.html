@@ -852,11 +852,42 @@
 			const backdrop = images.map(renderBlock).join("");
 			const pages = [];
 
-			for (let at = 0; at < rest.length; at += perPage) {
+			// Blocks are grouped perPage at a time -- except a QR code, which
+			// always gets a page to itself. Squeezed in beside two rows of
+			// text, a code shrinks below what a phone can read from across a
+			// room, and an unscannable code is worse than none. On its own
+			// page it fills the tile, the size it was checked to scan at.
+			const groups = [];
+			let group = [];
+
+			for (const block of rest) {
+				if (block.type === "qr") {
+					if (group.length) {
+						groups.push(group);
+						group = [];
+					}
+
+					groups.push([block]);
+					continue;
+				}
+
+				group.push(block);
+
+				if (group.length === perPage) {
+					groups.push(group);
+					group = [];
+				}
+			}
+
+			if (group.length) {
+				groups.push(group);
+			}
+
+			for (const blocksOnPage of groups) {
 				pages.push(
 					backdrop +
 					'<div class="body">' +
-						rest.slice(at, at + perPage).map(renderBlock).join("") +
+						blocksOnPage.map(renderBlock).join("") +
 					"</div>" +
 					label
 				);
