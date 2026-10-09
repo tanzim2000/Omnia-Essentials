@@ -6,6 +6,12 @@
 //
 // Read-only: it only ever listens. It never sends anything to a server.
 //
+// The topic is never shown. On a public server like ntfy.sh, the topic
+// name works like a password: anyone who knows it can read every message
+// and send their own. So nothing this module puts on a screen -- the
+// tile, a notification -- contains it. The tile is named by its own
+// setting, and a notification says which server it came from.
+//
 // HOW IT'S PUT TOGETHER
 //
 // This module has two halves that run separately and meet in the middle:
@@ -186,19 +192,42 @@ function readServer(value) {
 	}
 }
 
+// How the server is named in the notification's source box: just its
+// address, "ntfy.sh" or "192.168.1.20:8080", without the https:// in
+// front. Never the topic. On a public server the topic name is the only
+// thing keeping a stranger from reading your messages or sending you
+// some, so it's never put on a screen anyone else can see.
+function serverName(server) {
+	try {
+		return new URL(server).host;
+	} catch (error) {
+		return "";
+	}
+}
+
+// What the tile is called: the "Tile name" setting, or "ntfy". Not the
+// topic, for the same reason as above.
+function tileName(config) {
+	const name = String(config.name || "").trim();
+	return name || "ntfy";
+}
+
 // A tile that only has one thing to say: a dash, and why
-function problemTile(reason, server) {
+function problemTile(reason, server, title) {
 	const content = [
 		{ type: "text", emphasis: "primary", value: "—" },
 		{ type: "text", emphasis: "secondary", value: reason }
 	];
 
-	if (server) {
-		content.push({ type: "pair", label: "Server", value: server });
+	// Only the server's own address, never the full web address: someone
+	// who pasted the topic's link ("https://ntfy.sh/my-topic") into the
+	// Server box would otherwise see their topic printed right here
+	if (server && serverName(server)) {
+		content.push({ type: "pair", label: "Server", value: serverName(server) });
 	}
 
 	return {
-		title: "ntfy",
+		title: title || "ntfy",
 		content: content,
 		updated: new Date().toISOString()
 	};
@@ -394,6 +423,9 @@ module.exports.start = async function start(config, omni) {
 	const server = readServer(config.server);
 	const topic = String(config.topic || "").trim();
 
+	// What every notification's source box says
+	const source = serverName(server);
+
 	// What the tile reads. Written fresh on every start -- a settings
 	// change restarts this, and nothing from the old topic should linger.
 	const state = {
@@ -429,11 +461,13 @@ module.exports.start = async function start(config, omni) {
 		if (sentAt.length < NOTIFY_PER_MINUTE) {
 			sentAt.push(now);
 
-			// A message with no title of its own is announced under its
-			// topic's name, so the overlay is never just a bare line of
-			// text with nothing saying where it came from
+			// Exactly what was sent: its title if it had one, and its text.
+			// A message with no title shows as just its text. The source box
+			// above it says it came from this server -- never the topic,
+			// see serverName().
 			omni.notify({
-				title: message.title || topic,
+				source: source,
+				title: message.title,
 				description: message.body,
 				priority: message.priority
 			});
@@ -458,10 +492,9 @@ module.exports.start = async function start(config, omni) {
 				if (count > 0) {
 					sentAt.push(Date.now());
 					omni.notify({
-						title: topic,
-						description:
-							count + (count === 1 ? " more message" : " more messages") +
-							" — see the tile",
+						source: source,
+						title: count + (count === 1 ? " more message" : " more messages"),
+						description: "See the tile, or your phone",
 						priority: priority
 					});
 				}
@@ -551,26 +584,27 @@ module.exports.stop = async function stop(handle) {
 function tile(config, richness, omni) {
 	const server = readServer(config.server);
 	const topic = String(config.topic || "").trim();
+	const name = tileName(config);
 
 	if (!topic) {
-		return problemTile("No topic set");
+		return problemTile("No topic set", null, name);
 	}
 
 	// An OmniCore too old for background modules never calls start() and
 	// has no memory to hand over. The registry's minOmniCore keeps this
 	// from being installed there, but a tile saying why beats a crash.
 	if (!omni.memory) {
-		return problemTile("Needs a newer OmniCore");
+		return problemTile("Needs a newer OmniCore", null, name);
 	}
 
 	const state = omni.memory.read();
 
 	if (state.status === "bad-server") {
-		return problemTile("Not a valid server address");
+		return problemTile("Not a valid server address", null, name);
 	}
 
 	if (state.status === "bad-topic") {
-		return problemTile("Not a valid topic");
+		return problemTile("Not a valid topic", null, name);
 	}
 
 	const messages = state.messages || [];
@@ -579,7 +613,8 @@ function tile(config, richness, omni) {
 	if (messages.length === 0 && state.status !== "connected") {
 		return problemTile(
 			state.status === "unreachable" ? "Not reachable" : "Connecting…",
-			server
+			server,
+			name
 		);
 	}
 
@@ -640,9 +675,10 @@ function tile(config, richness, omni) {
 	const content = richness < 30 ? [howMany, priority] : [howMany, when, priority];
 
 	return {
-		// The topic names the tile: several ntfy tiles side by side are
-		// told apart by what they're listening to
-		title: topic,
+		// The "Tile name" setting names the tile, so several ntfy tiles side
+		// by side can be told apart -- "GitHub", "Backups" -- without the
+		// topic ever appearing on screen
+		title: name,
 		content: content,
 		updated: new Date().toISOString()
 	};

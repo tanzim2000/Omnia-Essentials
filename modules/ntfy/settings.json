@@ -12,7 +12,14 @@
 			"label": "Topic",
 			"type": "text",
 			"default": "",
-			"help": "Which topic to listen to. Letters, numbers, - and _ only, like ntfy itself. On a public server anyone who knows the name can post to it, so pick one nobody would guess"
+			"help": "Which topic to listen to. Letters, numbers, - and _ only, like ntfy itself. Treat it like a password: on a public server anyone who knows it can read your messages and send their own. Use a long random one. It's never shown on the display"
+		},
+		{
+			"key": "name",
+			"label": "Tile name",
+			"type": "text",
+			"default": "ntfy",
+			"help": "What the tile is called on the display, like GitHub or Backups. Handy when there's more than one ntfy tile"
 		},
 		{
 			"key": "since",
@@ -26,7 +33,7 @@
 			"label": "Show notifications",
 			"type": "boolean",
 			"default": true,
-			"help": "Pop up each new message on any OmniView showing this face"
+			"help": "Pop up each new message on every display showing this face, with this server's address on top so you know where it came from"
 		}
 	]
 }
