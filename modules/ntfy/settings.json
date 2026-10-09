@@ -16,16 +16,10 @@
 		},
 		{
 			"key": "since",
-			"label": "Catch up on",
+			"label": "Count announcements from the last",
 			"type": "text",
 			"default": "24h",
-			"help": "How far back to fill the tile when connecting, e.g. 12h, 7d, or all. These never raise notifications"
-		},
-		{
-			"key": "limit",
-			"label": "Rows to show",
-			"type": "number",
-			"default": 6
+			"help": "A number and m, h or d (30m, 12h, 7d), or all. The tile counts what came in this window, and fetches it when connecting. Fetched messages never raise notifications"
 		},
 		{
 			"key": "notify",
@@ -33,21 +27,6 @@
 			"type": "boolean",
 			"default": true,
 			"help": "Pop up each new message on any OmniView showing this face"
-		},
-		{
-			"key": "showCode",
-			"label": "Show scan-to-subscribe code",
-			"type": "boolean",
-			"default": true,
-			"help": "A QR code a phone can scan to follow this topic too"
-		},
-		{
-			"key": "codeOpens",
-			"label": "Code opens",
-			"type": "select",
-			"options": ["ntfy app", "Web page"],
-			"default": "ntfy app",
-			"help": "The app subscribes in one tap. The web page works on any phone, app or not"
 		}
 	]
 }

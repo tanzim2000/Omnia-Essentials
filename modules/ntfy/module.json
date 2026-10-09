@@ -1,8 +1,8 @@
 {
 	"name": "ntfy",
-	"description": "Live messages from an ntfy topic, with notifications",
-	"complete-description": "Listens to an ntfy topic the whole time OmniCore is running — a lightweight way to push messages to a display from scripts, other services, or anything that can make an HTTP request. New messages show up on the tile the moment they're sent, and pop up as a notification on any OmniView showing the face, staying up longer the higher their ntfy priority.\n\nWhen it connects it catches up on recent messages, so the tile is never empty after a restart — those only fill the tile; only messages that arrive while it's running raise a notification. Several ntfy tiles on the same server share one connection between them. A scan-to-subscribe code lets a phone follow the same topic in the ntfy app without typing anything. Works with ntfy.sh or your own server, HTTP or HTTPS.",
-	"provides": ["text", "pair", "qr"],
+	"description": "Notifications from an ntfy topic, and how many came in",
+	"complete-description": "Listens to an ntfy topic the whole time OmniCore is running — a lightweight way to push alerts to a display from scripts, other services, or anything that can make an HTTP request. Each new message pops up as a notification on any OmniView showing the face, staying up longer the higher its ntfy priority.\n\nThe tile answers one question at a glance: did anything happen? It shows how many announcements came in the window you pick (the last 24 hours by default), how long ago the latest one came, and its priority. The details stay on your phone. Messages fetched when connecting only count toward the tile; only messages that arrive while it's running raise a notification. Several ntfy tiles on the same server share one connection between them. Works with ntfy.sh or your own server, HTTP or HTTPS.",
+	"provides": ["pair", "text"],
 	"background": true,
 	"screenshots": []
 }

@@ -1,6 +1,8 @@
 // modules/ntfy/index.js
-// Listens to an ntfy topic, shows recent messages on a tile, and raises a
-// notification for every new one.
+// Listens to an ntfy topic, raises a notification for every new message,
+// and keeps a small tile answering one question: did anything happen?
+// How many announcements came in the window, when the last one came, and
+// how urgent it was. The details live on your phone; this is the glance.
 //
 // Read-only: it only ever listens. It never sends anything to a server.
 //
@@ -34,7 +36,7 @@
 //
 // Every time the connection opens -- OmniCore starting, a network blip,
 // another ntfy tile being added -- ntfy first replays recent messages
-// ("Catch up on" in settings), then carries on with new ones as they're
+// ("Count announcements from the last" in settings), then carries on with new ones as they're
 // sent. Both kinds fill the tile, so it's never empty after a restart.
 // Only the live ones raise a notification: a replayed message was already
 // sent before anyone here was listening, and announcing it again on every
@@ -85,21 +87,81 @@ const NOTIFY_PER_MINUTE = 5;
 // buffering it forever.
 const LONGEST_LINE = 1024 * 1024;
 
-// Turn a timestamp into "3m", "2h", "4d" -- short enough for a tile
+// How long ago a message came, in words a tile can say: "just now",
+// "12 min ago", "3 hours ago", "2 days ago". A message stamped a moment
+// in the future (the server's clock a little ahead of this one's) is
+// "just now" rather than nonsense.
 function timeAgo(seconds) {
 	const elapsed = Math.floor(Date.now() / 1000) - seconds;
 
-	if (elapsed < 60) return "now";
-	if (elapsed < 3600) return Math.floor(elapsed / 60) + "m";
-	if (elapsed < 86400) return Math.floor(elapsed / 3600) + "h";
-	return Math.floor(elapsed / 86400) + "d";
+	if (elapsed < 60) return "just now";
+
+	if (elapsed < 3600) {
+		return Math.floor(elapsed / 60) + " min ago";
+	}
+
+	if (elapsed < 86400) {
+		const hours = Math.floor(elapsed / 3600);
+		return hours + (hours === 1 ? " hour ago" : " hours ago");
+	}
+
+	const days = Math.floor(elapsed / 86400);
+	return days + (days === 1 ? " day ago" : " days ago");
+}
+
+// ntfy's priorities, 1 to 5, by the names ntfy itself gives them
+const PRIORITY_NAMES = {
+	1: "Min",
+	2: "Low",
+	3: "Default",
+	4: "High",
+	5: "Max"
+};
+
+// The "Count announcements from the last" setting, read once into the
+// three things that need it:
+//
+//   since    what to ask ntfy for when connecting, so the catch-up and
+//            the count cover the same stretch of time
+//   seconds  how far back the tile counts; null for "all"
+//   label    how the tile names the window: "last 24h"
+//
+// A number and a unit -- 30m, 12h, 7d -- or "all". Anything else falls
+// back to the default rather than being passed on to ntfy as-is: the
+// tile has to count over the window too, and a window it can't measure
+// would make the count say something different from the catch-up.
+const DEFAULT_WINDOW = "24h";
+const UNIT_SECONDS = { m: 60, h: 3600, d: 86400 };
+
+function readWindow(value) {
+	const text = String(value || "").trim().toLowerCase();
+
+	if (text === "all") {
+		return { since: "all", seconds: null, label: "" };
+	}
+
+	const match = /^(\d+)\s*([mhd])$/.exec(text);
+	const amount = match ? Number(match[1]) : 0;
+
+	if (!amount) {
+		return readWindow(DEFAULT_WINDOW);
+	}
+
+	const since = amount + match[2];
+
+	return {
+		since: since,
+		seconds: amount * UNIT_SECONDS[match[2]],
+		label: "last " + since
+	};
 }
 
 // The server setting, tidied into one consistent form -- or null if it
 // isn't a web address at all, or has a username and password written
 // into it ("https://me:secret@ntfy.example"). That form can't connect --
 // Node refuses to send a request built that way -- and it would put the
-// password on the tile, into the scan code, and into OmniCore's logs. Tidying matters for sharing: OmniCore
+// password on the tile and into OmniCore's logs. Tidying matters for
+// sharing: OmniCore
 // shares a connection between instances whose server is written exactly
 // the same, so "https://ntfy.sh" and "https://ntfy.sh/" must come out as
 // one thing, not two.
@@ -122,28 +184,6 @@ function readServer(value) {
 	} catch (error) {
 		return null;
 	}
-}
-
-// What a phone should open to follow this topic.
-//
-// "ntfy app" uses ntfy's own link format, which the Android app opens
-// straight to the topic, ready to subscribe. ntfy's docs say this is the
-// only way to do that -- an ordinary web link can't open the app there.
-// It assumes HTTPS unless told otherwise, so a plain-HTTP home server
-// adds ?secure=false.
-//
-// "Web page" is the topic's page on the server itself, which any phone
-// can open in a browser, app installed or not.
-function subscribeLink(server, topic, opens) {
-	if (opens === "Web page") {
-		return server + "/" + topic;
-	}
-
-	const url = new URL(server);
-	const path = url.pathname.replace(/\/+$/, "");
-	const insecure = url.protocol === "http:" ? "?secure=false" : "";
-
-	return "ntfy://" + url.host + path + "/" + topic + insecure;
 }
 
 // A tile that only has one thing to say: a dash, and why
@@ -358,10 +398,11 @@ module.exports.start = async function start(config, omni) {
 	// change restarts this, and nothing from the old topic should linger.
 	const state = {
 		status: "connecting",
-		messages: [],
-		// How many messages this connection has seen, replayed and live.
-		// Separate from `messages`, which is capped at KEEP.
-		count: 0
+		// Newest first, at most KEEP of them. The tile counts the ones
+		// inside the window itself, every time it's asked: an
+		// announcement quietly ages out of "the last 24h" without any
+		// new message arriving to say so.
+		messages: []
 	};
 
 	// The ids that were on the tile just before the last reconnect. Only
@@ -440,12 +481,12 @@ module.exports.start = async function start(config, omni) {
 		return null;
 	}
 
-	const since = String(config.since || "").trim() || "24h";
+	const since = readWindow(config.since).since;
 
 	omni.connections.join({
 		// Everything that decides HOW to connect goes in the key: two
 		// instances only share a connection if it would be opened exactly
-		// the same way for both. "Catch up on" is part of the request
+		// the same way for both. The window is part of the request
 		// itself, so it belongs here too.
 		key: server + " since=" + since,
 		interest: topic,
@@ -463,7 +504,6 @@ module.exports.start = async function start(config, omni) {
 
 				state.status = "connected";
 				state.messages = [];
-				state.count = 0;
 				return;
 			}
 
@@ -479,7 +519,6 @@ module.exports.start = async function start(config, omni) {
 			// Newest first, oldest falling off the end
 			state.messages.unshift(event.message);
 			state.messages.length = Math.min(state.messages.length, KEEP);
-			state.count++;
 
 			const isNew =
 				event.live ||
@@ -544,54 +583,66 @@ function tile(config, richness, omni) {
 		);
 	}
 
+	// WHAT THE TILE SAYS
+	//
+	// Three facts, as plain pairs, so any theme can lay them out its own
+	// way -- big and small, rows, columns, flipping or not:
+	//
+	//   how many   announcements inside the window
+	//   when       how long ago the latest one came
+	//   priority   how urgent the latest one was
+	//
+	// Only messages inside the window count for any of them. A quiet
+	// topic says 0 and "none", never "the last one was 3 days ago" when
+	// the window is a day: the tile answers for the window you picked.
+	const windowed = readWindow(config.since);
+	const cutoff = windowed.seconds === null
+		? -Infinity
+		: Math.floor(Date.now() / 1000) - windowed.seconds;
+
+	// Newest first, so the latest is always the first one in the window
+	const inWindow = messages.filter((message) => message.time >= cutoff);
+	const latest = inWindow[0];
+
+	// Only the last KEEP are remembered. If every one of those is still
+	// inside the window, there may well have been more before them, so
+	// the count says so rather than passing a floor off as the total.
+	const count = inWindow.length >= KEEP ? KEEP + "+" : String(inWindow.length);
+
+	// Still showing what it last had, but say so -- old numbers shouldn't
+	// pass for a live connection
+	const offline = state.status === "unreachable" ? " (offline)" : "";
+
+	const howMany = {
+		type: "pair",
+		emphasis: "primary",
+		label: "Announcements" + (windowed.label ? ", " + windowed.label : "") + offline,
+		value: count
+	};
+
+	const when = {
+		type: "pair",
+		label: "Last",
+		value: latest ? timeAgo(latest.time) : "none"
+	};
+
+	const priority = {
+		type: "pair",
+		label: "Priority",
+		value: latest ? PRIORITY_NAMES[latest.priority] || "Default" : "—"
+	};
+
 	// RICHNESS
 	//
-	// Every row is the same kind of thing -- one message -- so there is
-	// nothing for a user to reorder. Richness decides how many fit. The
-	// count leads at every size; the topic comes next; then the messages;
-	// and the scan-to-subscribe code last, only where there's real room
-	// for it, since a code too small to scan is worse than none.
-	const content = [
-		{ type: "text", emphasis: "primary", value: String(state.count || 0) }
-	];
-
-	if (richness >= 25) {
-		content.push({
-			type: "text",
-			emphasis: "secondary",
-			// Still showing what it last had, but say so -- old messages
-			// shouldn't pass for a live connection
-			value: topic + (state.status === "unreachable" ? " (offline)" : "")
-		});
-	}
-
-	// The user's own limit is the ceiling; richness decides how much of it
-	// this tile earns. minimum 0 so a tile with room only for the count
-	// shows only the count.
-	const room = omni.share(
-		Math.min(messages.length, Number(config.limit) || 0),
-		richness,
-		{ minimum: 0 }
-	);
-
-	for (const message of messages.slice(0, room)) {
-		content.push({
-			type: "pair",
-			label: timeAgo(message.time),
-			value: message.title || message.body
-		});
-	}
-
-	if (config.showCode !== false && richness >= 60 && server) {
-		content.push({
-			type: "qr",
-			value: subscribeLink(server, topic, config.codeOpens),
-			label: "Scan to subscribe"
-		});
-	}
+	// Two levels. The count leads at every size. With the least room
+	// there's space for one more fact, and how urgent beats how long ago.
+	// With any more room than that, all three, in the order above.
+	const content = richness < 30 ? [howMany, priority] : [howMany, when, priority];
 
 	return {
-		title: "ntfy",
+		// The topic names the tile: several ntfy tiles side by side are
+		// told apart by what they're listening to
+		title: topic,
 		content: content,
 		updated: new Date().toISOString()
 	};
