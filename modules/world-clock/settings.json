@@ -6,14 +6,61 @@
 			"type": "select",
 			"options": ["This machine", "A location"],
 			"default": "This machine",
-			"help": "\"This machine\" needs no network call at all — it's OmniCore's own resolved timezone."
+			"help": "On a dual or multi clock, this is the first clock. \"This machine\" needs no network call at all.",
+			"widgets": "all"
 		},
 		{
 			"key": "location",
 			"label": "Location",
 			"type": "location",
 			"showWhen": { "key": "zoneSource", "equals": "A location" },
-			"help": "Which place's timezone to show. Run a second instance for a second timezone."
+			"help": "Which place's time to show",
+			"widgets": "all"
+		},
+		{
+			"key": "zoneSource2",
+			"label": "Second clock",
+			"type": "select",
+			"options": ["This machine", "A location"],
+			"default": "A location",
+			"widgets": ["dual-clock", "multi-clock"]
+		},
+		{
+			"key": "location2",
+			"label": "Second clock's location",
+			"type": "location",
+			"showWhen": { "key": "zoneSource2", "equals": "A location" },
+			"widgets": ["dual-clock", "multi-clock"]
+		},
+		{
+			"key": "zoneSource3",
+			"label": "Third clock",
+			"type": "select",
+			"options": ["Off", "This machine", "A location"],
+			"default": "Off",
+			"widgets": ["multi-clock"]
+		},
+		{
+			"key": "location3",
+			"label": "Third clock's location",
+			"type": "location",
+			"showWhen": { "key": "zoneSource3", "equals": "A location" },
+			"widgets": ["multi-clock"]
+		},
+		{
+			"key": "zoneSource4",
+			"label": "Fourth clock",
+			"type": "select",
+			"options": ["Off", "This machine", "A location"],
+			"default": "Off",
+			"widgets": ["multi-clock"]
+		},
+		{
+			"key": "location4",
+			"label": "Fourth clock's location",
+			"type": "location",
+			"showWhen": { "key": "zoneSource4", "equals": "A location" },
+			"widgets": ["multi-clock"]
 		}
 	]
 }

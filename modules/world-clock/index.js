@@ -1,63 +1,107 @@
 // modules/world-clock/index.js
-// The current time — either this machine's own, or a place you choose,
-// independently per instance. Run two instances side by side to track
-// two different timezones at once.
+// The current time: this machine's own, or the time somewhere else. One
+// widget can show one clock, two, or up to four, depending on the widget
+// type picked on its page (see "widgets" in module.json):
 //
-// No format decisions here (12/24-hour, seconds, whether to show a date)
-// — that's entirely the theme's call. This module only ever answers one
-// question: what instant is it, and in which timezone should it be read.
+//   single-clock   one clock
+//   dual-clock     two clocks, each with its place's name
+//   multi-clock    up to four clocks, each with its place's name
 //
-// RICHNESS
-//
-// Accepted, per the module contract, but genuinely unused below. There
-// is exactly one fact this module has — the current time — and no
-// amount of extra room changes that. A deliberate one-step scale, not
-// an oversight: contrast with `weather`, which has six distinct fields
-// and genuinely more to say at higher richness.
+// No format decisions here (12 or 24 hour, seconds, a date): that's the
+// theme's call. This module only answers one question per clock: what
+// instant is it, and in which time zone should it be read.
 
-// What the tile calls itself when nobody's set an instance label. Core
-// only ever falls back to this when the user hasn't typed their own
-// label — so a title that already says "Dhaka" rather than the generic
-// "World Clock" means most people never have to touch the label field
-// at all just to tell two instances apart.
-function defaultTitle(config) {
-	if (config.zoneSource === "A location" && config.location && config.location.label) {
-		return config.location.label;
-	}
+// What a clock on this machine is called, where a clock needs a name
+const MACHINE_NAME = "Local time";
 
-	if (config.zoneSource !== "A location") {
-		return "Local Machine";
-	}
+// What a widget with three or four clocks is called. A name made of four
+// places would be too long to read as a title.
+const MULTI_NAME = "Clock";
 
-	// Location mode, but nothing nameable yet — either nothing is set at
-	// all, or manual coordinates were typed in with no label given them.
-	return "World Clock";
-}
-
-// Every failure returns a real envelope rather than throwing. A tile
-// that says why it's empty is more useful than one that vanishes.
-function problem(config, reason) {
-	return {
-		title: defaultTitle(config),
-		content: [
-			{ type: "text", emphasis: "primary", value: "—" },
-			{ type: "text", emphasis: "secondary", value: reason }
-		],
-		updated: new Date().toISOString()
-	};
-}
-
-// A place's timezone essentially never changes, so this is cached far
-// longer than a weather reading would be — a day is conservative, not
-// aggressive.
+// A place's time zone essentially never changes, so the lookup below is
+// cached for a day. That's cautious, not greedy.
 const TIMEZONE_CACHE_SECONDS = 24 * 60 * 60;
 
-// Same free, keyless dependency `weather` already uses for geocoding,
-// asked for the one field weather never needed: which IANA zone a
-// coordinate falls in. `current=temperature_2m` is a throwaway —
-// Open-Meteo requires at least one output variable per request — the
-// actual reading is discarded; only the response's own `timezone` field
-// is read.
+// The settings behind each clock, in order. Clock 1 uses the original
+// key names, so a World Clock set up before widget types existed keeps
+// its place when it becomes a "Single clock".
+const CLOCK_KEYS = [
+	{ source: "zoneSource", location: "location" },
+	{ source: "zoneSource2", location: "location2" },
+	{ source: "zoneSource3", location: "location3" },
+	{ source: "zoneSource4", location: "location4" }
+];
+
+// How many clocks each widget type has room for
+const MOST_CLOCKS = {
+	"single-clock": 1,
+	"dual-clock": 2,
+	"multi-clock": 4
+};
+
+// Which widget type this is. OmniCore always says (since 1.18.0); an
+// older one doesn't, and that means the first type, a single clock.
+function widgetTypeOf(config) {
+	return MOST_CLOCKS[config.widgetType] ? config.widgetType : "single-clock";
+}
+
+// The clocks this widget shows, as { source, location } in order. A clock
+// switched "Off" (only clocks 3 and 4 can be) is left out.
+function clocksOf(config) {
+	const count = MOST_CLOCKS[widgetTypeOf(config)];
+
+	return CLOCK_KEYS.slice(0, count)
+		.map((keys) => ({
+			source: config[keys.source] || "This machine",
+			location: config[keys.location] || null
+		}))
+		.filter((clock) => clock.source !== "Off");
+}
+
+// A clock's name: the place's name, or "Local time" for this machine.
+// Empty when a location has no name (coordinates typed in by hand
+// without one) or no location is set yet.
+function clockName(clock) {
+	if (clock.source !== "A location") {
+		return MACHINE_NAME;
+	}
+
+	return clock.location && clock.location.label ? clock.location.label : "";
+}
+
+// What the widget is called when nobody has typed a label for it.
+// OmniCore asks for this (since 1.19.7) and shows it as the tile's title
+// and on the widget's page; the label you type there always wins.
+//
+//   single  the place: "Dhaka", or "Local time"
+//   dual    both places: "Regina | Dhaka"
+//   multi   "Clock"
+//
+// Returns "" when there's nothing good to say (a place without a name),
+// and OmniCore then uses the module's name, "World Clock".
+function label(config) {
+	const type = widgetTypeOf(config);
+	const clocks = clocksOf(config);
+
+	if (type === "multi-clock") {
+		return MULTI_NAME;
+	}
+
+	const names = clocks.map(clockName);
+
+	// Every clock needs a name for the whole to be a good one
+	if (names.length === 0 || names.some((name) => !name)) {
+		return "";
+	}
+
+	return names.join(" | ");
+}
+
+// Same free, keyless service the weather module already uses, asked for
+// the one thing a clock needs: which time zone (an IANA name such as
+// "Asia/Dhaka") a place is in. `current=temperature_2m` is only there
+// because Open-Meteo wants at least one reading per request; it's thrown
+// away and only the response's own `timezone` is read.
 async function resolveLocationTimezone(location, omni) {
 	const url =
 		"https://api.open-meteo.com/v1/forecast" +
@@ -72,42 +116,95 @@ async function resolveLocationTimezone(location, omni) {
 	return data && typeof data.timezone === "string" ? data.timezone : null;
 }
 
-module.exports = async function worldClock(config, richness, omni) {
-	// core's own system-time read, never Date() called directly — one
-	// place establishing what instant "now" actually is. This machine's
-	// own resolved zone comes back as part of the same call, and is what
-	// we use unless a location says otherwise below.
-	const now = omni.time();
-	let timezone = now.timezone;
-
-	if (config.zoneSource === "A location") {
-		// OmniCore resolves the location setting before this ever runs.
-		// Null means there's nothing to work with — location services
-		// are off, or nothing was ever set.
-		if (!config.location) {
-			return problem(config, "No location set");
-		}
-
-		const resolved = await resolveLocationTimezone(config.location, omni);
-
-		if (!resolved) {
-			// The location itself is known even though the timezone
-			// lookup failed — the tile can still say "Dhaka", just not
-			// yet show a time for it.
-			return problem(config, "Not reachable");
-		}
-
-		timezone = resolved;
+// One clock's time zone, or why there isn't one:
+// { timezone } or { problem: "No location set" / "Not reachable" }
+async function timezoneOf(clock, machineZone, omni) {
+	if (clock.source !== "A location") {
+		return { timezone: machineZone };
 	}
 
-	// Exactly one block, regardless of richness — see the note above.
-	// `timestamp` is the raw instant `omni.time()` just gave us; a theme
-	// ticks it forward locally rather than this module being polled
-	// every second (see docs/Architecture.md §5c and docs/Building
-	// theme.md's note on `time` blocks).
-	return {
-		title: defaultTitle(config),
-		content: [{ type: "time", kind: "clock", timestamp: now.timestamp, timezone }],
-		updated: new Date().toISOString()
-	};
+	// OmniCore turns the location setting into coordinates before this
+	// runs. Null means there's nothing to work with: location services
+	// are off, or no place was ever set.
+	if (!clock.location) {
+		return { problem: "No location set" };
+	}
+
+	const timezone = await resolveLocationTimezone(clock.location, omni);
+	return timezone ? { timezone } : { problem: "Not reachable" };
+}
+
+// How many clocks fit at this richness. A dual or multi clock asked for
+// very little room still shows its first clock rather than squeezing in
+// all of them; more room shows more, one step per quarter.
+function clocksThatFit(total, richness) {
+	const room = Math.ceil((Number(richness) || 50) / 25);
+	return Math.max(1, Math.min(total, room));
+}
+
+module.exports = async function worldClock(config, richness, omni) {
+	// OmniCore's own reading of "now", never Date() called directly: one
+	// place decides what instant it is. This machine's own time zone
+	// comes back with it.
+	const now = omni.time();
+	const type = widgetTypeOf(config);
+	const clocks = clocksOf(config);
+	const title = label(config) || "World Clock";
+
+	// A single clock: one block, exactly as before. The title already
+	// says which place it is, so the clock itself needs no name.
+	if (type === "single-clock") {
+		const result = await timezoneOf(clocks[0], now.timezone, omni);
+
+		if (result.problem) {
+			return {
+				title,
+				content: [
+					{ type: "text", emphasis: "primary", value: "No time" },
+					{ type: "text", emphasis: "secondary", value: result.problem }
+				],
+				updated: new Date().toISOString()
+			};
+		}
+
+		return {
+			title,
+			// `timestamp` is the instant omni.time() gave; a theme ticks it
+			// forward on its own rather than this module being asked every
+			// second
+			content: [{ type: "time", kind: "clock", timestamp: now.timestamp, timezone: result.timezone }],
+			updated: new Date().toISOString()
+		};
+	}
+
+	// Two or more: each clock is its place's name, then its time. A clock
+	// that can't be shown says why in place of its time, and the others
+	// still show.
+	const shown = clocks.slice(0, clocksThatFit(clocks.length, richness));
+	const results = await Promise.all(
+		shown.map((clock) => timezoneOf(clock, now.timezone, omni))
+	);
+
+	const content = [];
+
+	shown.forEach((clock, index) => {
+		const result = results[index];
+
+		content.push({
+			type: "text",
+			emphasis: "secondary",
+			value: clockName(clock) || `Clock ${index + 1}`
+		});
+
+		content.push(
+			result.problem
+				? { type: "text", emphasis: "secondary", value: result.problem }
+				: { type: "time", kind: "clock", timestamp: now.timestamp, timezone: result.timezone }
+		);
+	});
+
+	return { title, content, updated: new Date().toISOString() };
 };
+
+// Hung on the main function, where OmniCore looks for it
+module.exports.label = label;

@@ -1,7 +1,24 @@
 {
 	"name": "World Clock",
-	"description": "The current time, here or somewhere else",
+	"description": "The time here, somewhere else, or in up to four places at once",
 	"provides": ["text", "time"],
-	"complete-description": "Shows the current time, either this machine's own, or a place you choose, independently per tile. Run two instances side by side to track two different timezones at once.\n\nNo format choices here (12-hour vs 24-hour, whether to show seconds or a date) that's entirely up to whichever theme is displaying it. This module only ever answers one question: what time is it, and in which timezone.",
+	"widgets": [
+		{
+			"id": "single-clock",
+			"name": "Single clock",
+			"description": "One clock, for here or one place you choose"
+		},
+		{
+			"id": "dual-clock",
+			"name": "Dual clock",
+			"description": "Two clocks, each with its place's name"
+		},
+		{
+			"id": "multi-clock",
+			"name": "Multi clock",
+			"description": "Up to four clocks, each with its place's name"
+		}
+	],
+	"complete-description": "Keep an eye on the time where you are and where the people you care about are.\n\nPick how many clocks you want. A single clock shows one time, either this machine's own or a place you choose. A dual clock shows two places side by side, handy for keeping up with family in another country. A multi clock shows up to four. Each widget is named after the place it shows, so a single clock for Dhaka is simply called Dhaka, a dual clock is called \"Regina | Dhaka\", and a multi clock is called Clock. You can always type your own name instead.\n\nThe clocks keep ticking on their own between updates, and daylight saving is handled for you. How the time looks (12 or 24 hour, with or without seconds) is up to the theme you use.\n\nWhat it needs from you: nothing for this machine's own time. For another place, choose \"A location\" and search for a city. The first time it shows a new place, it asks Open-Meteo, a free service, which time zone that place is in, and then remembers it for a day.",
 	"screenshots": []
 }
