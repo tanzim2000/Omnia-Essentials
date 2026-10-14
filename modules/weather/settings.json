@@ -7,11 +7,100 @@
 			"help": "Where to report the weather for"
 		},
 		{
-			"key": "units",
-			"label": "Units",
+			"key": "source",
+			"label": "Source",
 			"type": "select",
-			"options": ["Celsius", "Fahrenheit"],
-			"default": "Celsius"
+			"options": [
+				"Open-Meteo",
+				"Environment Canada",
+				"MET Norway",
+				"US National Weather Service",
+				"OpenWeatherMap",
+				"Google Weather"
+			],
+			"default": "Open-Meteo",
+			"help": "Open-Meteo works anywhere. Environment Canada, MET Norway and the US National Weather Service each cover their own country, and add weather alerts.",
+			"ask": {
+				"OpenWeatherMap": {
+					"question": "Do you have an OpenWeatherMap API key?",
+					"text": "OpenWeatherMap needs a key of your own. It's free: sign up at openweathermap.org and copy the key from the API keys page of your account.",
+					"into": "owmKey",
+					"prompt": "Your OpenWeatherMap API key",
+					"placeholder": "Paste it here"
+				},
+				"Google Weather": {
+					"question": "Do you have a Google Weather API key?",
+					"text": "Google Weather needs a key of your own, from a Google Cloud project with the Weather API turned on.",
+					"into": "googleKey",
+					"prompt": "Your Google Weather API key",
+					"placeholder": "Paste it here"
+				}
+			}
+		},
+		{
+			"key": "owmKey",
+			"label": "OpenWeatherMap API key",
+			"type": "password",
+			"showWhen": {
+				"key": "source",
+				"equals": "OpenWeatherMap"
+			},
+			"help": "A new key can take a couple of hours to start working. Until then the widget says Invalid API key."
+		},
+		{
+			"key": "googleKey",
+			"label": "Google Weather API key",
+			"type": "password",
+			"showWhen": {
+				"key": "source",
+				"equals": "Google Weather"
+			},
+			"help": "From Google Cloud, with the Weather API turned on for its project."
+		},
+		{
+			"key": "units",
+			"label": "Temperature",
+			"type": "select",
+			"options": [
+				"Celsius",
+				"Fahrenheit"
+			],
+			"default": "Celsius",
+			"help": "Pressure follows it: hectopascals with Celsius, inches of mercury with Fahrenheit."
+		},
+		{
+			"key": "windUnits",
+			"label": "Wind speed",
+			"type": "select",
+			"options": [
+				"Automatic",
+				"km/h",
+				"mph"
+			],
+			"default": "Automatic",
+			"help": "Automatic is km/h with Celsius and mph with Fahrenheit. Visibility follows it: kilometres or miles."
+		},
+		{
+			"key": "alertLevel",
+			"label": "Notify me about",
+			"type": "select",
+			"options": [
+				"Every alert",
+				"Moderate and up",
+				"Severe and up",
+				"Nothing"
+			],
+			"default": "Moderate and up",
+			"showWhen": {
+				"key": "source",
+				"equals": [
+					"Environment Canada",
+					"MET Norway",
+					"US National Weather Service",
+					"Google Weather"
+				]
+			},
+			"help": "Weather alerts for this place, each shown once on this face's screens. In Canada and Norway, a yellow warning is moderate, orange severe, red extreme."
 		},
 		{
 			"key": "fieldOrder",
@@ -23,7 +112,11 @@
 				"Feels like",
 				"High / low",
 				"Humidity",
-				"Wind"
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Precipitation chance",
+				"UV index"
 			],
 			"default": [
 				"Temperature",
@@ -31,16 +124,210 @@
 				"Feels like",
 				"High / low",
 				"Humidity",
-				"Wind"
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Precipitation chance",
+				"UV index"
 			],
-			"help": "What matters most to you. The top one shows even on the smallest tile; the rest appear as the tile gets bigger."
+			"showWhen": {
+				"key": "source",
+				"equals": "Open-Meteo"
+			},
+			"help": "What matters most to you. The top one shows even on the smallest tile, and bigger tiles show more. Anything Open-Meteo has nothing for right now is skipped."
+		},
+		{
+			"key": "ecOrder",
+			"label": "Info order",
+			"type": "priority",
+			"options": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"Precipitation chance"
+			],
+			"default": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"Precipitation chance"
+			],
+			"showWhen": {
+				"key": "source",
+				"equals": "Environment Canada"
+			},
+			"help": "What matters most to you. The top one shows even on the smallest tile, and bigger tiles show more. Anything Environment Canada has nothing for right now is skipped."
+		},
+		{
+			"key": "metOrder",
+			"label": "Info order",
+			"type": "priority",
+			"options": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"Precipitation chance",
+				"UV index"
+			],
+			"default": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"Precipitation chance",
+				"UV index"
+			],
+			"showWhen": {
+				"key": "source",
+				"equals": "MET Norway"
+			},
+			"help": "What matters most to you. The top one shows even on the smallest tile, and bigger tiles show more. Anything MET Norway has nothing for right now is skipped."
+		},
+		{
+			"key": "nwsOrder",
+			"label": "Info order",
+			"type": "priority",
+			"options": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"Visibility",
+				"Precipitation chance"
+			],
+			"default": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"Visibility",
+				"Precipitation chance"
+			],
+			"showWhen": {
+				"key": "source",
+				"equals": "US National Weather Service"
+			},
+			"help": "What matters most to you. The top one shows even on the smallest tile, and bigger tiles show more. Anything US National Weather Service has nothing for right now is skipped."
+		},
+		{
+			"key": "owmOrder",
+			"label": "Info order",
+			"type": "priority",
+			"options": [
+				"Temperature",
+				"Condition",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Visibility",
+				"Precipitation chance"
+			],
+			"default": [
+				"Temperature",
+				"Condition",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Visibility",
+				"Precipitation chance"
+			],
+			"showWhen": {
+				"key": "source",
+				"equals": "OpenWeatherMap"
+			},
+			"help": "What matters most to you. The top one shows even on the smallest tile, and bigger tiles show more. Anything OpenWeatherMap has nothing for right now is skipped."
+		},
+		{
+			"key": "googleOrder",
+			"label": "Info order",
+			"type": "priority",
+			"options": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"UV index",
+				"Visibility",
+				"Precipitation chance"
+			],
+			"default": [
+				"Temperature",
+				"Condition",
+				"Alert",
+				"Feels like",
+				"High / low",
+				"Humidity",
+				"Wind",
+				"Wind gusts",
+				"Pressure",
+				"Dew point",
+				"UV index",
+				"Visibility",
+				"Precipitation chance"
+			],
+			"showWhen": {
+				"key": "source",
+				"equals": "Google Weather"
+			},
+			"help": "What matters most to you. The top one shows even on the smallest tile, and bigger tiles show more. Anything Google Weather has nothing for right now is skipped."
 		},
 		{
 			"key": "refreshMinutes",
 			"label": "Refresh every",
 			"type": "number",
 			"default": 10,
-			"help": "Minutes between calls to Open-Meteo. Lower means more calls."
+			"help": "Alerts are never checked more often than every 10 minutes, whatever this says."
 		}
 	]
 }

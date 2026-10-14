@@ -275,13 +275,18 @@
 		   the first two above each other instead. */
 		.table {
 			display: grid;
-			grid-template-columns: 1fr;
+			/* minmax(0, ...): the column is the tile's width, not the
+			   longest row's. A plain 1fr grew to fit a long value and
+			   pushed every row's value off the right edge. */
+			grid-template-columns: minmax(0, 1fr);
 			column-gap: 28px;
 			align-content: start;
 			min-width: 0;
 		}
 
-		.table.split { grid-template-columns: 1fr 1fr; }
+		/* minmax(0, ...) holds each column to half: a plain 1fr grows to
+		   fit a long value and pushes the other column off the tile */
+		.table.split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 
 		/* The name of a pair given headline treatment. Same weight as a
 		   secondary line — it explains the big number above it. */
@@ -311,6 +316,47 @@
 			text-overflow: ellipsis;
 		}
 
+		/* Where the data came from (a module's data-source). On a wide or
+		   large tile: a row at the foot, the tile's name on the left and
+		   the credit on the right in small type, up to two lines. The
+		   credit takes whatever room the name leaves. */
+		.foot {
+			display: flex;
+			align-items: flex-end;
+			justify-content: space-between;
+			gap: 12px;
+			margin-top: 8px;
+			flex: none;
+		}
+
+		.foot .label {
+			margin-top: 0;
+			flex: none;
+			max-width: 45%;
+		}
+
+		.credit {
+			min-width: 0;
+			font-size: 10.5px;
+			font-weight: 400;
+			line-height: 1.25;
+			opacity: 0.7;
+			text-align: right;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+			overflow: hidden;
+		}
+
+		/* On a medium tile, the credit is a page of its own */
+		.credit-page {
+			font-size: 12px;
+			font-weight: 400;
+			line-height: 1.35;
+			opacity: 0.85;
+			overflow-wrap: break-word;
+		}
+
 		/* Descendant, not direct child. On a detail page these rows sit
 		   inside a .table, and a `>` here would style none of them —
 		   name and value would run together with no gap. */
@@ -335,7 +381,10 @@
 			text-overflow: ellipsis;
 		}
 
-		.body .pair span:last-child { flex-shrink: 0; }
+		/* The value keeps its full width, up to most of the row: a long
+		   one (an alert in a narrow column) is cut short with "..."
+		   rather than squeezing its name down to a letter */
+		.body .pair span:last-child { flex-shrink: 0; max-width: 62%; }
 
 		.body > .body {
 			font-size: 13px;
@@ -362,7 +411,8 @@
 
 		/* Text over an image needs help staying readable */
 		.tile-image ~ .body,
-		.tile-image ~ .label {
+		.tile-image ~ .label,
+		.tile-image ~ .foot {
 			position: relative;
 			text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 		}
@@ -794,10 +844,17 @@
 			const pages = [];
 			let rest = blocks;
 
-			if (spec.lead !== null) {
+			// A wide tile's credit at the foot (see withCredit) takes the
+			// room of one row under the headline. That row moves to the
+			// next page rather than being trimmed off and lost.
+			const lead = spec.lead !== null && size === "wide" && data["data-source"]
+				? spec.lead - 1
+				: spec.lead;
+
+			if (lead !== null) {
 				const head = blocks[0];
-				const beside = blocks.slice(1, 1 + spec.lead);
-				rest = blocks.slice(1 + spec.lead);
+				const beside = blocks.slice(1, 1 + lead);
+				rest = blocks.slice(1 + lead);
 
 				pages.push(
 					backdrop +
@@ -812,11 +869,15 @@
 
 			const perPage = Math.max(1, spec.rows * spec.cols);
 
+			// Two columns only when one column can't hold them all: a
+			// column of whole names reads better than two of cut ones
+			const cols = rest.length > spec.rows ? spec.cols : 1;
+
 			for (let at = 0; at < rest.length; at += perPage) {
 				pages.push(
 					backdrop +
 					'<div class="body">' +
-						detailPage(rest.slice(at, at + perPage), spec.cols) +
+						detailPage(rest.slice(at, at + perPage), cols) +
 					"</div>" +
 					named
 				);
@@ -825,11 +886,52 @@
 			return pages;
 		}
 
+		// Every face this tile shows, one at a time, with the data's credit
+		// where the tile has room for it.
+		function paginate(data, size) {
+			return withCredit(contentPages(data, size), data, size);
+		}
+
+		// Where the data came from: an envelope's "data-source" (OmniCore
+		// 1.19.8), such as "Weather data from MET Norway". Some services
+		// only allow their data to be shown with that credit, so it goes
+		// wherever it fits:
+		//
+		//   small         nowhere: 70 pixels has no room for a sentence
+		//   medium        a page of its own at the end of the roll, like
+		//                 the back of the tile
+		//   wide, large   small type at the foot of every page, on the
+		//                 right, up to two lines, with the tile's name on
+		//                 the left
+		function withCredit(pages, data, size) {
+			const credit = String((data && data["data-source"]) || "").trim();
+
+			if (!credit || size === "small" || !SIZES[size] || !SIZES[size].perPage) {
+				return pages;
+			}
+
+			if (size === "medium") {
+				return pages.concat([
+					'<div class="body"><div class="credit-page">' + escapeHtml(credit) + "</div></div>" +
+					'<div class="label">' + escapeHtml(data.title || "") + "</div>"
+				]);
+			}
+
+			// Every page ends with the tile's name. It goes into a row at
+			// the foot with the credit beside it.
+			return pages.map(function (page) {
+				return page.replace(/<div class="label">([^<]*)<\/div>\s*$/, function (whole, name) {
+					return '<div class="foot"><div class="label">' + name + "</div>" +
+						'<div class="credit">' + escapeHtml(credit) + "</div></div>";
+				});
+			});
+		}
+
 		// Split a module's blocks into faces this tile can show one at a
 		// time. A module honouring richness should mostly come back with
 		// one page's worth — but if it sends more, we page through it
 		// rather than silently dropping the rest.
-		function paginate(data, size) {
+		function contentPages(data, size) {
 			// Pairs get this theme's own layout. Anything else — text,
 			// quotes, progress, a mix — takes the general path below.
 			const laidOut = pairPages(data, size);
@@ -923,16 +1025,24 @@
 			// Pairs are matched at any depth, not just as direct children —
 			// on a wide tile they sit inside columns, and a `:scope >` match
 			// would walk straight past them and trim nothing.
+			// Too much in the face, or in its body: the body has its own
+			// limit once a credit at the foot takes room, and clips what's
+			// past it rather than making the face overflow
+			const overflowing = function () {
+				return face.scrollHeight > face.clientHeight ||
+					body.scrollHeight > body.clientHeight + 1;
+			};
+
 			let pairs = body.querySelectorAll(".pair");
 
-			while (pairs.length > 0 && face.scrollHeight > face.clientHeight) {
+			while (pairs.length > 0 && overflowing()) {
 				pairs[pairs.length - 1].remove();
 				pairs = body.querySelectorAll(".pair");
 			}
 
 			let rows = body.querySelectorAll(":scope > .body");
 
-			while (rows.length > 0 && face.scrollHeight > face.clientHeight) {
+			while (rows.length > 0 && overflowing()) {
 				rows[rows.length - 1].remove();
 				rows = body.querySelectorAll(":scope > .body");
 			}
